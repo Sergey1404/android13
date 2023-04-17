@@ -3,13 +3,8 @@ package com.example.rickandmorty
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import retrofit2.Call
 import retrofit2.Callback
-import retrofit2.HttpException
 import retrofit2.Response
 
 class MainModelView : ViewModel() {
@@ -22,10 +17,11 @@ class MainModelView : ViewModel() {
     }
 
     private fun loadAllCharacters(page: String) {
-        CoroutineScope(Dispatchers.IO).launch {
-            val response = MainActivity.api.getAllCharacters(page)
-
-            try {
+        MainActivity.api.getAllCharacters(page).enqueue(object : Callback<CharacterResponse> {
+            override fun onResponse(
+                call: Call<CharacterResponse>,
+                response: Response<CharacterResponse>
+            ) {
                 if (response.isSuccessful) {
                     val actualList = _rickAndMortyList.value.orEmpty().toMutableList()
                     actualList.removeAll { it == RickAndMortySealed.Button }
@@ -40,22 +36,20 @@ class MainModelView : ViewModel() {
                     newList.addAll(characters)
                     newList.add(RickAndMortySealed.Button)
 
-                    _rickAndMortyList.postValue(actualList + newList)
-                } else {
-                    Log.e("Error", "${response.code()}")
+                    _rickAndMortyList.value = actualList + newList
                 }
-            } catch (e: HttpException) {
-                Log.e("aaa", "Exception ${e.message}")
-            } catch (e: Throwable) {
-                Log.d("ooops", "Something else went wrong: $e")
             }
-        }
+
+            override fun onFailure(call: Call<CharacterResponse>, t: Throwable) {
+                Log.e("aaa", "$t")
+            }
+        })
     }
 
     fun loadNextPage() {
         ++page
-        Log.d("page:", "$page")
-        if (page == 42) {
+        Log.d("page:","$page")
+        if(page == 42){
             return
         }
         loadAllCharacters(page.toString())
